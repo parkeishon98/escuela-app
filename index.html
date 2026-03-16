@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a3a5c" />
+  <meta name="description" content="Portal Escolar para Padres de Familia" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Portal Escolar" />
+  <link rel="manifest" href="manifest.json" />
+  <title>EduConnect — Portal de Padres</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --navy:#0f2744;--blue:#1a3a5c;--mid:#2563a8;--accent:#f4a020;--gold:#e8920a;
+      --light:#f0f5fb;--white:#ffffff;--text:#0f2744;--muted:#6b829e;
+      --card-bg:rgba(255,255,255,0.92);--shadow:0 8px 40px rgba(15,39,68,0.13);
+      --radius:18px;--radius-sm:10px;
+      --font-display:'Playfair Display',serif;--font-body:'DM Sans',sans-serif;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html{scroll-behavior:smooth;}
+    body{font-family:var(--font-body);background:var(--light);color:var(--text);min-height:100vh;overflow-x:hidden;}
+    .hidden{display:none!important;}
+    .screen{display:none;min-height:100vh;animation:fadeUp .45s ease both;}
+    .screen.active{display:flex;flex-direction:column;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+    .auth-screen{background:linear-gradient(160deg,var(--navy) 0%,var(--blue) 55%,var(--mid) 100%);justify-content:center;align-items:center;padding:24px;position:relative;overflow:hidden;}
+    .auth-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 20% 80%,rgba(244,160,32,.12) 0%,transparent 50%),radial-gradient(circle at 80% 20%,rgba(37,99,168,.25) 0%,transparent 50%);}
+    .auth-deco{position:absolute;width:420px;height:420px;border-radius:50%;border:1.5px solid rgba(255,255,255,.06);top:-140px;right:-140px;pointer-events:none;}
+    .auth-deco:nth-child(2){width:260px;height:260px;bottom:-80px;left:-80px;top:auto;right:auto;}
+    .auth-card{background:var(--card-bg);backdrop-filter:blur(20px);border-radius:var(--radius);padding:44px 40px 40px;width:100%;max-width:440px;box-shadow:var(--shadow),0 2px 0 rgba(255,255,255,.7) inset;position:relative;z-index:1;}
+    .auth-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+    .auth-logo-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--mid),var(--accent));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 16px rgba(37,99,168,.35);}
+    .auth-logo-text{font-family:var(--font-display);font-size:1.5rem;color:var(--navy);line-height:1;}
+    .auth-logo-sub{font-size:.7rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;}
+    .auth-title{font-family:var(--font-display);font-size:1.75rem;color:var(--navy);margin-bottom:6px;}
+    .auth-sub{font-size:.875rem;color:var(--muted);margin-bottom:28px;}
+    .form-group{margin-bottom:18px;}
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}
+    input,select{width:100%;padding:11px 15px;border:1.5px solid #dde6f0;border-radius:var(--radius-sm);font-family:var(--font-body);font-size:.95rem;color:var(--text);background:#f7fafd;outline:none;transition:border-color .2s,box-shadow .2s;appearance:none;}
+    input:focus,select:focus{border-color:var(--mid);background:var(--white);box-shadow:0 0 0 3px rgba(37,99,168,.12);}
+    input::placeholder{color:#b0bec8;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 24px;border:none;border-radius:var(--radius-sm);font-family:var(--font-body);font-size:.95rem;font-weight:600;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+    .btn:active{transform:scale(.97);}
+    .btn:disabled{opacity:.5;cursor:not-allowed;}
+    .btn-primary{background:linear-gradient(135deg,var(--mid),#1d50a2);color:var(--white);width:100%;box-shadow:0 4px 18px rgba(37,99,168,.35);}
+    .btn-accent{background:linear-gradient(135deg,var(--accent),var(--gold));color:var(--white);width:100%;box-shadow:0 4px 18px rgba(244,160,32,.35);}
+    .btn-ghost{background:transparent;color:var(--mid);border:1.5px solid var(--mid);padding:10px 20px;}
+    .auth-switch{text-align:center;margin-top:20px;font-size:.85rem;color:var(--muted);}
+    .auth-switch a{color:var(--mid);font-weight:600;cursor:pointer;}
+    .error-msg{background:#fef1f1;border:1px solid #f5c6c6;color:#c0392b;padding:10px 14px;border-radius:8px;font-size:.83rem;margin-bottom:16px;}
+    .topbar{background:var(--navy);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:62px;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(15,39,68,.25);}
+    .topbar-logo{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:1.15rem;color:var(--white);}
+    .topbar-right{display:flex;align-items:center;gap:12px;}
+    .topbar-user{font-size:.8rem;color:rgba(255,255,255,.7);display:flex;align-items:center;gap:7px;}
+    .avatar{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--gold));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:var(--white);}
+    .btn-logout{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.8);font-size:.75rem;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:var(--font-body);}
+    .children-bar{background:var(--white);border-bottom:1px solid #e4ecf4;padding:14px 20px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    .children-bar::-webkit-scrollbar{display:none;}
+    .children-list{display:flex;gap:10px;align-items:center;width:max-content;}
+    .child-chip{display:flex;align-items:center;gap:8px;padding:8px 16px;border-radius:40px;border:2px solid #dde6f0;background:var(--white);cursor:pointer;transition:all .2s;font-size:.85rem;font-weight:500;white-space:nowrap;}
+    .child-chip .chip-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:var(--white);}
+    .child-chip.active{border-color:var(--mid);background:var(--mid);color:var(--white);box-shadow:0 3px 12px rgba(37,99,168,.3);}
+    .child-chip.active .chip-avatar{background:rgba(255,255,255,.25);}
+    .add-child-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:40px;border:2px dashed #c5d4e8;background:transparent;cursor:pointer;font-size:.82rem;font-weight:500;color:var(--muted);font-family:var(--font-body);transition:border-color .2s,color .2s;}
+    .add-child-btn:hover{border-color:var(--mid);color:var(--mid);}
+    .dash-content{flex:1;padding:20px;max-width:720px;width:100%;margin:0 auto;padding-bottom:calc(20px + env(safe-area-inset-bottom));}
+    .student-hero{background:linear-gradient(135deg,var(--navy) 0%,var(--mid) 100%);border-radius:var(--radius);padding:24px;color:var(--white);margin-bottom:22px;position:relative;overflow:hidden;box-shadow:var(--shadow);}
+    .student-hero::after{content:'';position:absolute;width:180px;height:180px;border-radius:50%;border:2px solid rgba(255,255,255,.07);right:-50px;top:-50px;}
+    .student-hero-avatar{width:58px;height:58px;border-radius:50%;border:3px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;background:rgba(255,255,255,.15);margin-bottom:14px;}
+    .student-name{font-family:var(--font-display);font-size:1.5rem;font-weight:700;margin-bottom:4px;}
+    .student-meta{font-size:.82rem;opacity:.75;display:flex;gap:16px;flex-wrap:wrap;}
+    .student-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px;}
+    .stat-box{background:rgba(255,255,255,.1);border-radius:12px;padding:12px;text-align:center;backdrop-filter:blur(10px);}
+    .stat-val{font-size:1.4rem;font-weight:700;}
+    .stat-lbl{font-size:.72rem;opacity:.75;margin-top:2px;}
+    .tab-nav{display:flex;gap:4px;background:var(--white);border-radius:12px;padding:4px;margin-bottom:20px;box-shadow:0 2px 8px rgba(15,39,68,.07);}
+    .tab-btn{flex:1;padding:9px 6px;border:none;border-radius:9px;background:transparent;font-family:var(--font-body);font-size:.78rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px;}
+    .tab-btn.active{background:var(--mid);color:var(--white);box-shadow:0 2px 8px rgba(37,99,168,.25);}
+    .tab-panel{display:none;}
+    .tab-panel.active{display:block;animation:fadeUp .3s ease both;}
+    .subjects-grid{display:grid;gap:12px;}
+    .subject-card{background:var(--white);border-radius:var(--radius-sm);padding:16px 18px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 10px rgba(15,39,68,.06);border-left:4px solid var(--mid);transition:transform .2s,box-shadow .2s;}
+    .subject-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(15,39,68,.1);}
+    .subject-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+    .subject-info{flex:1;}
+    .subject-name{font-weight:600;font-size:.95rem;margin-bottom:2px;}
+    .subject-teacher{font-size:.78rem;color:var(--muted);}
+    .grade-badge{padding:5px 12px;border-radius:20px;font-size:.9rem;font-weight:700;min-width:52px;text-align:center;}
+    .grade-a{background:#e8faf0;color:#1e7e4b;}
+    .grade-b{background:#e8f2ff;color:#1a5fba;}
+    .grade-c{background:#fff8e8;color:#9a6200;}
+    .grade-d{background:#fef3e8;color:#c05800;}
+    .grade-f{background:#fdecea;color:#c0392b;}
+    .grades-list{display:grid;gap:10px;}
+    .grade-row{background:var(--white);border-radius:var(--radius-sm);padding:14px 18px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(15,39,68,.06);}
+    .grade-row-icon{font-size:1.2rem;width:36px;text-align:center;}
+    .grade-row-info{flex:1;}
+    .grade-row-title{font-weight:600;font-size:.9rem;}
+    .grade-row-meta{font-size:.75rem;color:var(--muted);margin-top:2px;}
+    .att-table-wrap{background:var(--white);border-radius:var(--radius-sm);box-shadow:0 2px 10px rgba(15,39,68,.06);overflow:hidden;}
+    .att-table{width:100%;border-collapse:collapse;}
+    .att-table th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:10px 14px;background:#f7fafd;border-bottom:1px solid #e4ecf4;text-align:left;}
+    .att-table td{padding:10px 14px;border-bottom:1px solid #f0f5fb;font-size:.86rem;}
+    .att-table tr:last-child td{border-bottom:none;}
+    .att-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;}
+    .att-p{background:#e8faf0;color:#1e7e4b;}
+    .att-f{background:#fdecea;color:#c0392b;}
+    .att-j{background:#fff8e8;color:#9a6200;}
+    .att-r{background:#e8f2ff;color:#1a5fba;}
+    .announcements-list{display:grid;gap:12px;}
+    .announcement-card{background:var(--white);border-radius:var(--radius-sm);padding:18px 18px 18px 22px;box-shadow:0 2px 10px rgba(15,39,68,.06);position:relative;overflow:hidden;}
+    .announcement-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;}
+    .ann-info .announcement-card::before{background:var(--mid);}
+    .ann-aviso .announcement-card::before{background:var(--accent);}
+    .ann-evento .announcement-card::before{background:#22c55e;}
+    .ann-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;}
+    .ann-title{font-weight:700;font-size:.95rem;}
+    .ann-date{font-size:.72rem;color:var(--muted);white-space:nowrap;}
+    .ann-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:12px;font-size:.7rem;font-weight:600;margin-bottom:8px;}
+    .tag-info{background:#e8f2ff;color:#1a5fba;}
+    .tag-aviso{background:#fff3e0;color:#c06000;}
+    .tag-evento{background:#e8faf0;color:#1e7e4b;}
+    .ann-body{font-size:.85rem;color:#4a5f76;line-height:1.55;}
+    .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+    .empty-state .empty-icon{font-size:3rem;margin-bottom:12px;opacity:.5;}
+    .empty-state p{font-size:.9rem;}
+    .modal-overlay{position:fixed;inset:0;background:rgba(10,20,40,.55);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:flex-end;animation:fadeIn .2s ease both;}
+    @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+    .modal-sheet{background:var(--white);border-radius:22px 22px 0 0;padding:28px 24px 36px;width:100%;max-height:92vh;overflow-y:auto;animation:slideUp .3s cubic-bezier(.34,1.56,.64,1) both;}
+    @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+    .modal-handle{width:40px;height:4px;background:#dde6f0;border-radius:2px;margin:0 auto 22px;}
+    .modal-title{font-family:var(--font-display);font-size:1.4rem;color:var(--navy);margin-bottom:6px;}
+    .modal-sub{font-size:.85rem;color:var(--muted);margin-bottom:22px;}
+    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--navy);color:var(--white);padding:12px 22px;border-radius:40px;font-size:.875rem;font-weight:500;z-index:300;box-shadow:0 8px 30px rgba(15,39,68,.3);transition:transform .35s cubic-bezier(.34,1.56,.64,1);pointer-events:none;}
+    .toast.show{transform:translateX(-50%) translateY(0);}
+    .btn-pdf{background:linear-gradient(135deg,#e53e3e,#c53030);color:#fff;box-shadow:0 4px 14px rgba(229,62,62,.3);}
+    .btn-pdf:hover{box-shadow:0 6px 20px rgba(229,62,62,.4);}
+    .btn-push{background:transparent;border:none;cursor:pointer;font-size:1.3rem;padding:4px 6px;line-height:1;transition:transform .2s;}
+    .btn-push:hover{transform:scale(1.15);}
+    .push-badge{display:inline-block;background:var(--accent);color:#fff;font-size:.6rem;font-weight:700;border-radius:50%;width:14px;height:14px;text-align:center;line-height:14px;margin-left:-8px;vertical-align:top;}
+    .spinner{display:inline-block;width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @media(min-width:600px){.dash-content{padding:24px 24px calc(24px + env(safe-area-inset-bottom));}}
+  
+    /* ── Anti-zoom & fixed layout for mobile ── */
+    html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+    input, select, textarea { font-size: 16px !important; touch-action: manipulation; }
+    * { -webkit-tap-highlight-color: transparent; }
+    body { overscroll-behavior-y: none; }
+    .screen { -webkit-overflow-scrolling: touch; }
+
+    /* ── iOS Safe Area / Notch fix ── */
+    .topbar {
+      padding-top: env(safe-area-inset-top) !important;
+      height: calc(62px + env(safe-area-inset-top)) !important;
+    }
+    .topbar-logo, .topbar-right, .topbar .flex,
+    header.topbar > * { margin-top: 0; }
+    body { padding-top: 0; }
+    @supports (padding-top: env(safe-area-inset-top)) {
+      .topbar {
+        padding-top: calc(env(safe-area-inset-top) + 10px) !important;
+        height: calc(62px + env(safe-area-inset-top)) !important;
+      }
+    }
+
+
+    /* ── Messages parent ── */
+    .chat-wrap{background:var(--white);border-radius:var(--radius-sm);box-shadow:0 2px 10px rgba(15,39,68,.06);display:flex;flex-direction:column;overflow:hidden;}
+    .chat-subject-sel{padding:14px 18px;border-bottom:1px solid #e4ecf4;display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    .chat-subject-sel::-webkit-scrollbar{display:none;}
+    .chat-subj-btn{padding:7px 14px;border-radius:30px;border:2px solid #dde6f0;background:var(--white);font-family:var(--font-body);font-size:.8rem;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .2s;}
+    .chat-subj-btn.active{border-color:var(--mid);background:var(--mid);color:white;}
+    .parent-chat-messages{min-height:280px;max-height:380px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch;}
+    .msg-bubble{max-width:78%;padding:10px 14px;border-radius:16px;font-size:.875rem;line-height:1.5;word-break:break-word;}
+    .msg-bubble.sent{background:var(--mid);color:white;align-self:flex-end;border-bottom-right-radius:4px;}
+    .msg-bubble.received{background:#f0f5fb;color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;}
+    .msg-time{font-size:.65rem;color:var(--muted);margin-top:3px;}
+    .msg-time.right{text-align:right;}
+    .parent-chat-input{display:flex;gap:10px;padding:14px;border-top:1px solid #e4ecf4;align-items:flex-end;}
+    .parent-chat-textarea{flex:1;padding:10px 14px;border:1.5px solid #dde6f0;border-radius:12px;font-family:var(--font-body);font-size:.9rem;color:var(--text);background:#f7fafd;outline:none;resize:none;min-height:42px;max-height:100px;transition:border-color .2s;}
+    .parent-chat-textarea:focus{border-color:var(--mid);}
+    .parent-send-btn{background:linear-gradient(135deg,var(--mid),#1d50a2);border:none;border-radius:12px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1rem;color:white;flex-shrink:0;}
+
+</style>
+</head>
+<body>
+
+<section id="screen-login" class="screen auth-screen active">
+  <div class="auth-deco"></div><div class="auth-deco"></div>
+  <div class="auth-card">
+    <div class="auth-logo"><div class="auth-logo-icon">🎓</div><div><div class="auth-logo-text">EduConnect</div><div class="auth-logo-sub">Portal de Padres</div></div></div>
+    <h1 class="auth-title">Bienvenido</h1>
+    <p class="auth-sub">Accede para ver la información escolar de tus hijos.</p>
+    <div id="login-error" class="error-msg hidden"></div>
+    <div class="form-group"><label>Correo electrónico</label><input id="login-email" type="email" placeholder="ejemplo@correo.com"/></div>
+    <div class="form-group"><label>Contraseña</label><input id="login-pass" type="password" placeholder="••••••••"/></div>
+    <button class="btn btn-primary" id="login-btn" onclick="loginUser()">Iniciar sesión</button>
+    <p class="auth-switch">¿No tienes cuenta? <a onclick="goTo('screen-register')">Regístrate</a></p>
+  </div>
+</section>
+
+<section id="screen-register" class="screen auth-screen">
+  <div class="auth-deco"></div><div class="auth-deco"></div>
+  <div class="auth-card">
+    <div class="auth-logo"><div class="auth-logo-icon">🎓</div><div><div class="auth-logo-text">EduConnect</div><div class="auth-logo-sub">Portal de Padres</div></div></div>
+    <h1 class="auth-title">Crear cuenta</h1>
+    <p class="auth-sub">Regístrate como padre o tutor.</p>
+    <div id="reg-error" class="error-msg hidden"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Nombre(s)</label><input id="reg-nombre" type="text" placeholder="María"/></div>
+      <div class="form-group"><label>Apellido(s)</label><input id="reg-apellido" type="text" placeholder="García"/></div>
+    </div>
+    <div class="form-group"><label>Correo electrónico</label><input id="reg-email" type="email" placeholder="ejemplo@correo.com"/></div>
+    <div class="form-group"><label>Contraseña</label><input id="reg-pass" type="password" placeholder="Mínimo 6 caracteres"/></div>
+    <div class="form-group"><label>Confirmar contraseña</label><input id="reg-pass2" type="password" placeholder="Repite la contraseña"/></div>
+    <button class="btn btn-accent" id="reg-btn" onclick="registerUser()">Crear cuenta</button>
+    <p class="auth-switch">¿Ya tienes cuenta? <a onclick="goTo('screen-login')">Inicia sesión</a></p>
+  </div>
+</section>
+
+<section id="screen-dashboard" class="screen" style="background:var(--light)">
+  <header class="topbar">
+    <div class="topbar-logo"><span>🎓</span> EduConnect</div>
+    <div class="topbar-right">
+      <button class="btn-push" id="push-btn" onclick="togglePushSubscription()" title="Activar notificaciones">🔔</button>
+      <div class="topbar-user"><div class="avatar" id="topbar-avatar">?</div><span id="topbar-name"></span></div>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+  </header>
+  <div class="children-bar"><div class="children-list" id="children-list"><button class="add-child-btn" onclick="openAddChildModal()">+ Agregar hijo</button></div></div>
+  <main class="dash-content" id="dash-content">
+    <div class="empty-state"><div class="empty-icon">👨‍👩‍👧</div><p>Agrega a tus hijos para ver su información escolar.</p><br><button class="btn btn-primary" style="width:auto;padding:12px 28px" onclick="openAddChildModal()">+ Agregar hijo</button></div>
+  </main>
+</section>
+
+<div id="modal-add-child" class="modal-overlay hidden" onclick="closeModalBD(event)">
+  <div class="modal-sheet" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">Vincular hijo/a</h2>
+    <p class="modal-sub">Ingresa el nombre y la matrícula asignada por la escuela.</p>
+    <div id="child-error" class="error-msg hidden"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Nombre(s)</label><input id="child-nombre" type="text" placeholder="Nombre"/></div>
+      <div class="form-group"><label>Apellido(s)</label><input id="child-apellido" type="text" placeholder="Apellido"/></div>
+    </div>
+    <div class="form-group"><label>Matrícula</label><input id="child-matricula" type="text" placeholder="Ej: 2024-001"/></div>
+    <button class="btn btn-primary" id="add-child-btn" onclick="addChild()">Vincular alumno</button>
+    <br><br>
+    <button class="btn btn-ghost" style="width:100%" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE CONFIG ─────────────────────────
+const SUPABASE_URL = 'https://klkyxyybphtuniqhxjlj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtsa3l4eXlicGh0dW5pcWh4amxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1OTc3MTEsImV4cCI6MjA4OTE3MzcxMX0.ZhLUhU-7GjxuAXS5KeRqPM5k4nxPj06IUElk_Jr4C8g';
+// VAPID public key — genera en https://vapidkeys.com  o con web-push CLI
+// npx web-push generate-vapid-keys
+const VAPID_PUBLIC_KEY = 'TU_VAPID_PUBLIC_KEY';
+// ────────────────────────────────────────────
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const DB = {
+  getUsers:    () => JSON.parse(localStorage.getItem('edu_p_users')||'{}'),
+  saveUsers:   d  => localStorage.setItem('edu_p_users',JSON.stringify(d)),
+  getChildren: () => JSON.parse(localStorage.getItem('edu_p_children')||'{}'),
+  saveChildren:d  => localStorage.setItem('edu_p_children',JSON.stringify(d)),
+  getSession:  () => JSON.parse(localStorage.getItem('edu_p_session')||'null'),
+  saveSession: d  => localStorage.setItem('edu_p_session',JSON.stringify(d)),
+  clearSession:() => localStorage.removeItem('edu_p_session'),
+};
+const AVATAR_COLORS=['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899','#22c55e'];
+let currentUser=null, linkedChildren=[], selectedChildIdx=0;
+
+function goTo(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+
+function loginUser(){
+  const email=ge('login-email').value.trim().toLowerCase();
+  const pass=ge('login-pass').value;
+  const err=ge('login-error');err.classList.add('hidden');
+  if(!email||!pass){showErr(err,'Completa todos los campos.');return;}
+  const users=DB.getUsers();
+  if(!users[email]){showErr(err,'Correo no registrado.');return;}
+  if(users[email].password!==pass){showErr(err,'Contraseña incorrecta.');return;}
+  currentUser=users[email];DB.saveSession({email});initDashboard();goTo('screen-dashboard');
+}
+
+function registerUser(){
+  const nombre=ge('reg-nombre').value.trim(),apellido=ge('reg-apellido').value.trim();
+  const email=ge('reg-email').value.trim().toLowerCase();
+  const pass=ge('reg-pass').value,pass2=ge('reg-pass2').value;
+  const err=ge('reg-error');err.classList.add('hidden');
+  if(!nombre||!apellido||!email||!pass){showErr(err,'Completa todos los campos.');return;}
+  if(pass.length<6){showErr(err,'Mínimo 6 caracteres.');return;}
+  if(pass!==pass2){showErr(err,'Las contraseñas no coinciden.');return;}
+  const users=DB.getUsers();
+  if(users[email]){showErr(err,'Correo ya registrado.');return;}
+  users[email]={nombre,apellido,email,password:pass};DB.saveUsers(users);
+  DB.saveSession({email});currentUser=users[email];initDashboard();goTo('screen-dashboard');showToast('¡Cuenta creada!');
+}
+
+function logout(){DB.clearSession();currentUser=null;linkedChildren=[];goTo('screen-login');}
+
+function initDashboard(){
+  const initials=(currentUser.nombre[0]+currentUser.apellido[0]).toUpperCase();
+  ge('topbar-avatar').textContent=initials;ge('topbar-name').textContent=currentUser.nombre;
+  const all=DB.getChildren();
+  linkedChildren=all[currentUser.email]||[];
+  renderChildrenBar();
+  if(linkedChildren.length>0){selectedChildIdx=0;renderChildContent(0);}
+  else{ge('dash-content').innerHTML=`<div class="empty-state"><div class="empty-icon">👨‍👩‍👧</div><p>Agrega a tus hijos para ver su información escolar.</p><br><button class="btn btn-primary" style="width:auto;padding:12px 28px" onclick="openAddChildModal()">+ Agregar hijo</button></div>`;}
+}
+
+function renderChildrenBar(){
+  const list=ge('children-list');list.innerHTML='';
+  linkedChildren.forEach((child,i)=>{
+    const color=AVATAR_COLORS[i%AVATAR_COLORS.length];
+    const chip=document.createElement('div');
+    chip.className='child-chip-wrap';
+    chip.style.cssText='position:relative;display:inline-flex;align-items:center;';
+    chip.innerHTML=`
+      <button class="child-chip${i===selectedChildIdx?' active':''}" onclick="selectChild(${i})" style="padding-right:${i===selectedChildIdx?'32px':'12px'}">
+        <div class="chip-avatar" style="background:${i===selectedChildIdx?'rgba(255,255,255,.25)':color}">${child.nombre[0]}${child.apellido[0]}</div>
+        ${child.nombre}
+      </button>
+      <button onclick="confirmDeleteChild(${i})" title="Eliminar hijo" style="
+        position:absolute;right:4px;top:50%;transform:translateY(-50%);
+        background:rgba(255,255,255,.25);border:none;border-radius:50%;
+        width:20px;height:20px;cursor:pointer;font-size:.65rem;
+        display:${i===selectedChildIdx?'flex':'none'};
+        align-items:center;justify-content:center;color:white;
+        transition:background .2s;padding:0;line-height:1;
+      " onmouseover="this.style.background='rgba(255,80,80,.5)'" onmouseout="this.style.background='rgba(255,255,255,.25)'">✕</button>`;
+    list.appendChild(chip);
+  });
+  const addBtn=document.createElement('button');
+  addBtn.className='add-child-btn';addBtn.innerHTML='+ Hijo';addBtn.onclick=openAddChildModal;
+  list.appendChild(addBtn);
+}
+
+function selectChild(i){
+  selectedChildIdx=i;
+  renderChildrenBar();
+  renderChildContent(i);
+}
+
+function confirmDeleteChild(i){
+  const child=linkedChildren[i];
+  if(!confirm(`¿Eliminar a ${child.nombre} ${child.apellido} (${child.matricula}) de tu lista?\n\nEsto solo lo quita de tu cuenta, no borra sus datos escolares.`)) return;
+  deleteChild(i);
+}
+
+function deleteChild(i){
+  const all=DB.getChildren();
+  const children=all[currentUser.email]||[];
+  children.splice(i,1);
+  all[currentUser.email]=children;
+  DB.saveChildren(all);
+  linkedChildren=children;
+  selectedChildIdx=Math.max(0, i-1);
+  renderChildrenBar();
+  if(linkedChildren.length>0){
+    renderChildContent(selectedChildIdx);
+  } else {
+    // Store for messaging tab - set BEFORE innerHTML
+  window._chatSubjects = enrList.map(e=>e.subjects ? {id:e.subjects.id,nombre:e.subjects.nombre,teacher_id:e.subjects.teacher_id} : null).filter(Boolean);
+  window._chatStudentId = student.id;
+
+  ge('dash-content').innerHTML=`<div class="empty-state"><div class="empty-icon">👨‍👩‍👧</div><p>Agrega a tus hijos para ver su información escolar.</p><br><button class="btn btn-primary" style="width:auto;padding:12px 28px" onclick="openAddChildModal()">+ Agregar hijo</button></div>`;
+  }
+  showToast('Hijo eliminado de tu lista.');
+}
+
+async function renderChildContent(idx){
+  const child=linkedChildren[idx];if(!child)return;
+  ge('dash-content').innerHTML=`<div style="text-align:center;padding:60px 20px;color:var(--muted)"><span class="spinner" style="border-top-color:var(--mid);width:28px;height:28px;border-width:3px"></span><p style="margin-top:12px;font-size:.9rem">Cargando información de ${child.nombre}…</p></div>`;
+
+  try {
+    const matriculaBuscar = String(child.matricula).trim();
+
+    // Buscar con eq exacto primero, luego ilike como fallback
+    let student = null;
+    const {data:r1} = await sb.from('students').select('id,nombre,apellido,grado,grupo,matricula').eq('matricula', matriculaBuscar).limit(1);
+    if(r1 && r1.length > 0) student = r1[0];
+    if(!student){
+      const {data:r2} = await sb.from('students').select('id,nombre,apellido,grado,grupo,matricula').ilike('matricula', matriculaBuscar).limit(1);
+      if(r2 && r2.length > 0) student = r2[0];
+    }
+
+    if(!student){
+      ge('dash-content').innerHTML=`
+        <div class="empty-state">
+          <div class="empty-icon">❓</div>
+          <p>No se encontró al alumno con matrícula <strong>${matriculaBuscar}</strong>.</p><br>
+          <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:14px;text-align:left;color:#856404;font-size:.85rem">
+            <strong>¿Qué verificar?</strong><br><br>
+            1. Ve al <strong>Panel de Maestros → Alumnos</strong> y confirma que el alumno esté registrado<br>
+            2. La matrícula debe ser exactamente: <strong>${matriculaBuscar}</strong><br>
+            3. Si es diferente, elimina este hijo con el botón ✕ y agrégalo de nuevo con la matrícula correcta
+          </div><br>
+          <button class="btn btn-primary" style="width:auto;padding:10px 24px" onclick="renderChildContent(${idx})">🔄 Reintentar</button>
+        </div>`;
+      return;
+    }
+
+    const {data:enrollments} = await sb.from('enrollments')
+      .select('id,subjects(id,nombre,grado,grupo,nivel,color,icon,teacher_id,teachers(nombre,apellido))')
+      .eq('student_id', student.id);
+    const enrList = (enrollments||[]).filter(e => e.subjects !== null);
+    const enrIds  = enrList.map(e=>e.id);
+
+    let allGrades=[];
+    if(enrIds.length){
+      const {data:g}=await sb.from('grades').select('*').in('enrollment_id',enrIds).order('fecha',{ascending:false});
+      allGrades=g||[];
+    }
+
+    const since=new Date();since.setDate(since.getDate()-29);
+    const sinceStr=since.toISOString().split('T')[0];
+    let attRecords=[];
+    if(enrList.length){
+      const subjectIds=enrList.map(e=>e.subjects.id);
+      const {data:att}=await sb.from('attendance').select('*').eq('student_id',student.id).in('subject_id',subjectIds).gte('fecha',sinceStr).order('fecha',{ascending:false});
+      attRecords=att||[];
+    }
+
+    let annRecords=[];
+    if(enrList.length){
+      const subjectIds=enrList.map(e=>e.subjects.id);
+      const teacherIds=[...new Set(enrList.map(e=>e.subjects.teacher_id).filter(Boolean))];
+      const {data:ann1}=await sb.from('announcements').select('*,subjects(nombre)').in('subject_id',subjectIds).order('fecha',{ascending:false}).limit(10);
+      let ann2=[];
+      if(teacherIds.length){
+        const {data:a2}=await sb.from('announcements').select('*,subjects(nombre)').in('teacher_id',teacherIds).is('subject_id',null).order('fecha',{ascending:false}).limit(10);
+        ann2=a2||[];
+      }
+      const seen=new Set();
+      annRecords=[...(ann1||[]),...ann2].filter(a=>{if(seen.has(a.id))return false;seen.add(a.id);return true;}).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,20);
+    }
+
+    const gradeLabel=g=>{if(g===null||g===undefined)return 'grade-b';if(g>=9)return 'grade-a';if(g>=8)return 'grade-b';if(g>=7)return 'grade-c';if(g>=6)return 'grade-d';return 'grade-f';};
+
+    const subjectGrades=enrList.map(e=>{
+      const eG=allGrades.filter(g=>g.enrollment_id===e.id);
+      const avg=eG.length?(eG.reduce((s,g)=>s+parseFloat(g.calificacion),0)/eG.length):null;
+      return{subject:e.subjects,avg,enrollmentId:e.id};
+    });
+    const validAvgs=subjectGrades.filter(s=>s.avg!==null).map(s=>s.avg);
+    const overallAvg=validAvgs.length?(validAvgs.reduce((a,b)=>a+b,0)/validAvgs.length).toFixed(1):'—';
+    const presentes=attRecords.filter(a=>a.estado==='presente').length;
+    const attPct=attRecords.length?Math.round(presentes/attRecords.length*100)+'%':'—';
+
+    const subjectsHTML=subjectGrades.length
+      ?subjectGrades.map(({subject:s,avg})=>`
+        <div class="subject-card" style="border-left-color:${s.color||'#2563a8'}">
+          <div class="subject-icon" style="background:${s.color||'#2563a8'}22">${s.icon||'📚'}</div>
+          <div class="subject-info"><div class="subject-name">${s.nombre}</div><div class="subject-teacher">Prof. ${s.teachers?.nombre||''} ${s.teachers?.apellido||''}</div></div>
+          <div class="grade-badge ${gradeLabel(avg)}">${avg!==null?parseFloat(avg).toFixed(1):'S/C'}</div>
+        </div>`).join('')
+      :`<div class="empty-state"><div class="empty-icon">📚</div><p>Alumno encontrado ✅ pero aún no está inscrito en ninguna materia.<br><span style="font-size:.8rem">El maestro debe inscribirlo en el Panel de Maestros → Alumnos → seleccionar materia.</span></p></div>`;
+
+    const gradesHTML=allGrades.length
+      ?allGrades.slice(0,20).map(g=>{const enr=enrList.find(e=>e.id===g.enrollment_id);return`<div class="grade-row"><div class="grade-row-icon">📝</div><div class="grade-row-info"><div class="grade-row-title">${g.tipo}${g.descripcion?' — '+g.descripcion:''}</div><div class="grade-row-meta">${enr?.subjects?.nombre||'—'} · ${new Date(g.fecha+'T12:00').toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}</div></div><div class="grade-badge ${gradeLabel(g.calificacion)}" style="padding:5px 12px">${parseFloat(g.calificacion).toFixed(1)}</div></div>`;}).join('')
+      :`<div class="empty-state"><div class="empty-icon">📊</div><p>No hay calificaciones registradas aún.</p></div>`;
+
+    const attStatusMap={presente:['att-p','Presente'],falta:['att-f','Falta'],justificada:['att-j','Justificada'],retardo:['att-r','Retardo']};
+    const attHTML=attRecords.length
+      ?`<div class="att-table-wrap"><table class="att-table"><thead><tr><th>Fecha</th><th>Materia</th><th>Estado</th></tr></thead><tbody>${attRecords.map(a=>{const enr=enrList.find(e=>e.subjects&&e.subjects.id===a.subject_id);const[cls,label]=attStatusMap[a.estado]||['','—'];return`<tr><td>${new Date(a.fecha+'T12:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'})}</td><td>${enr?.subjects?.nombre||'—'}</td><td><span class="att-pill ${cls}">${label}</span></td></tr>`;}).join('')}</tbody></table></div>`
+      :`<div class="empty-state"><div class="empty-icon">📋</div><p>No hay registros de asistencia aún.</p></div>`;
+
+    const tagMap={info:['ℹ️','tag-info','info'],aviso:['⚠️','tag-aviso','aviso'],evento:['🎉','tag-evento','evento']};
+    const annHTML=annRecords.length
+      ?`<div class="announcements-list">${annRecords.map(a=>{const[icon,tagCls,type]=tagMap[a.tipo]||tagMap.info;return`<div class="ann-${type}"><div class="announcement-card"><div class="ann-header"><div class="ann-title">${a.titulo}</div><div class="ann-date">${new Date(a.fecha+'T12:00').toLocaleDateString('es-MX',{day:'numeric',month:'short'})}</div></div><span class="ann-tag ${tagCls}">${icon} ${a.tipo.charAt(0).toUpperCase()+a.tipo.slice(1)}</span>${a.subjects?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">📚 ${a.subjects.nombre}</div>`:''}<div class="ann-body">${a.cuerpo}</div></div></div>`;}).join('')}</div>`
+      :`<div class="empty-state"><div class="empty-icon">📢</div><p>No hay anuncios publicados aún.</p></div>`;
+
+    // Store subjects for messaging tab
+    window._chatSubjects = enrList.map(e=>e.subjects ? {id:e.subjects.id,nombre:e.subjects.nombre,teacher_id:e.subjects.teacher_id} : null).filter(Boolean);
+    window._chatStudentId = student.id;
+
+    ge('dash-content').innerHTML=`
+      <div class="student-hero">
+        <div class="student-hero-avatar">${student.nombre[0]}${student.apellido[0]}</div>
+        <div class="student-name">${student.nombre} ${student.apellido}</div>
+        <div class="student-meta"><span>🎒 ${student.grado} "${student.grupo}"</span><span>🪪 ${student.matricula}</span></div>
+        <div class="student-stats">
+          <div class="stat-box"><div class="stat-val">${overallAvg}</div><div class="stat-lbl">Promedio</div></div>
+          <div class="stat-box"><div class="stat-val">${attPct}</div><div class="stat-lbl">Asistencia</div></div>
+          <div class="stat-box"><div class="stat-val">${enrList.length}</div><div class="stat-lbl">Materias</div></div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-pdf btn-sm" onclick="generatePDF('${student.id}','${student.nombre} ${student.apellido}','${student.matricula}','${student.grado}','${student.grupo}')">📄 Reporte PDF</button>
+          <button class="btn btn-ghost btn-sm" style="border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.8)" onclick="renderChildContent(${idx})">🔄 Actualizar</button>
+        </div>
+      </div>
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('tab-mat',this)">📚 Materias</button>
+        <button class="tab-btn" onclick="switchTab('tab-cal',this)">📊 Califs</button>
+        <button class="tab-btn" onclick="switchTab('tab-att',this)">📋 Asist.</button>
+        <button class="tab-btn" onclick="switchTab('tab-ann',this)">📢 Avisos</button>
+        <button class="tab-btn" onclick="switchTab('tab-msg',this);initParentChat()">💬 Chat</button>
+      </div>
+      <div id="tab-mat" class="tab-panel active"><div class="subjects-grid">${subjectsHTML}</div></div>
+      <div id="tab-cal" class="tab-panel"><div class="grades-list">${gradesHTML}</div></div>
+      <div id="tab-att" class="tab-panel">${attHTML}</div>
+      <div id="tab-ann" class="tab-panel">${annHTML}</div>
+      <div id="tab-msg" class="tab-panel">
+        <div class="chat-wrap" id="parent-chat-wrap">
+          <div class="empty-state"><div class="empty-icon">💬</div><p>Toca aquí para cargar mensajes...</p></div>
+        </div>
+      </div>`;
+
+  } catch(err) {
+    console.error('Error cargando alumno:', err);
+    ge('dash-content').innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><p>Error al cargar la información: ${err.message}</p><br><button class="btn btn-primary" style="width:auto;padding:10px 24px" onclick="renderChildContent(${idx})">🔄 Reintentar</button></div>`;
+  }
+}
+function switchTab(id,btn){document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById(id).classList.add('active');btn.classList.add('active');}
+
+function openAddChildModal(){ge('child-nombre').value='';ge('child-apellido').value='';ge('child-matricula').value='';ge('child-error').classList.add('hidden');ge('modal-add-child').classList.remove('hidden');}
+
+async function addChild(){
+  const nombre=ge('child-nombre').value.trim();
+  const apellido=ge('child-apellido').value.trim();
+  const matricula=ge('child-matricula').value.trim().toUpperCase(); // normalizar a mayúsculas
+  const err=ge('child-error');err.classList.add('hidden');
+  if(!nombre||!apellido||!matricula){showErr(err,'Completa todos los campos.');return;}
+  const all=DB.getChildren();
+  const children=all[currentUser.email]||[];
+  if(children.find(c=>c.matricula.toUpperCase()===matricula)){showErr(err,'Ya tienes vinculado un hijo con esa matrícula.');return;}
+
+  ge('add-child-btn').disabled=true;ge('add-child-btn').innerHTML='<span class="spinner"></span> Buscando…';
+
+  // Buscar en Supabase (case-insensitive con ilike)
+  const {data:studs}=await sb.from('students').select('id,nombre,apellido,matricula').ilike('matricula', matricula).limit(1);
+  const student=studs&&studs.length>0?studs[0]:null;
+
+  ge('add-child-btn').disabled=false;ge('add-child-btn').innerHTML='Vincular alumno';
+
+  // Guardar siempre — con la matrícula exacta que encontramos en BD o la que escribió
+  const matriculaFinal = student ? student.matricula : matricula;
+  children.push({nombre, apellido, matricula: matriculaFinal});
+  all[currentUser.email]=children;
+  DB.saveChildren(all);
+  linkedChildren=children;
+
+  closeModal();
+  renderChildrenBar();
+  selectedChildIdx=children.length-1;
+  renderChildContent(selectedChildIdx);
+
+  if(student){
+    showToast(`✅ ${student.nombre} ${student.apellido} vinculado correctamente.`);
+  } else {
+    showToast(`⚠️ ${nombre} agregado. Matrícula "${matriculaFinal}" aún no está en el sistema.`);
+  }
+}
+
+function closeModal(){ge('modal-add-child').classList.add('hidden');}
+function closeModalBD(e){if(e.target===e.currentTarget)closeModal();}
+const ge=id=>document.getElementById(id);
+function showErr(el,msg){el.textContent=msg;el.classList.remove('hidden');}
+let toastTimer;
+function showToast(msg){const t=ge('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3200);}
+
+// ══════════════════════════════════════════
+//  PDF — REPORTE DE CALIFICACIONES
+// ══════════════════════════════════════════
+async function generatePDF(studentId, nombreCompleto, matricula, grado, grupo) {
+  const btn = document.querySelector('.btn-pdf');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Generando…'; }
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    // ── Colores ──
+    const NAVY  = [15, 39, 68];
+    const MID   = [37, 99, 168];
+    const ACCENT= [244, 160, 32];
+    const WHITE = [255, 255, 255];
+    const LIGHT = [240, 245, 251];
+    const MUTED = [107, 130, 158];
+
+    const W = 210, M = 15, CW = W - M * 2;
+
+    // ── Header ──
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, W, 38, 'F');
+    doc.setFillColor(...ACCENT);
+    doc.rect(0, 38, W, 3, 'F');
+
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('EduConnect', M, 16);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Portal Escolar — Reporte de Calificaciones', M, 23);
+    doc.setFontSize(8);
+    doc.text(`Generado: ${new Date().toLocaleDateString('es-MX', {weekday:'long', year:'numeric', month:'long', day:'numeric'})}`, M, 30);
+
+    // ── Datos del alumno ──
+    let y = 52;
+    doc.setFillColor(...LIGHT);
+    doc.roundedRect(M, y, CW, 28, 3, 3, 'F');
+    doc.setDrawColor(...MID);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(M, y, CW, 28, 3, 3, 'S');
+
+    doc.setTextColor(...NAVY);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text(nombreCompleto, M + 6, y + 9);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...MUTED);
+    doc.text(`Matrícula: ${matricula}`, M + 6, y + 16);
+    doc.text(`Grado: ${grado}   Grupo: ${grupo}`, M + 6, y + 22);
+    doc.text(`Ciclo: ${new Date().getFullYear()}-${new Date().getFullYear()+1}`, M + 80, y + 16);
+
+    // Fetch data for PDF
+    const { data: enrollments } = await sb.from('enrollments')
+      .select('id,subjects(id,nombre,nivel,grado,grupo,color,teachers(nombre,apellido))')
+      .eq('student_id', studentId);
+    const enrList = enrollments || [];
+    const enrIds  = enrList.map(e => e.id);
+
+    let allGrades = [];
+    if (enrIds.length) {
+      const { data: g } = await sb.from('grades').select('*').in('enrollment_id', enrIds).order('fecha', { ascending: true });
+      allGrades = g || [];
+    }
+
+    // ── Resumen por materia ──
+    y += 36;
+    doc.setTextColor(...NAVY);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Resumen por Materia', M, y);
+    y += 6;
+
+    // Table header
+    doc.setFillColor(...MID);
+    doc.rect(M, y, CW, 8, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('Materia', M + 3, y + 5.5);
+    doc.text('Maestro', M + 65, y + 5.5);
+    doc.text('Evaluaciones', M + 120, y + 5.5);
+    doc.text('Promedio', M + 155, y + 5.5);
+    y += 8;
+
+    let grandTotal = 0, grandCount = 0;
+    const subjectSummaries = [];
+
+    enrList.forEach((enr, i) => {
+      const s = enr.subjects;
+      const eGrades = allGrades.filter(g => g.enrollment_id === enr.id);
+      const avg = eGrades.length ? (eGrades.reduce((sum, g) => sum + parseFloat(g.calificacion), 0) / eGrades.length) : null;
+      if (avg !== null) { grandTotal += avg; grandCount++; }
+      subjectSummaries.push({ enr, s, eGrades, avg });
+
+      const bg = i % 2 === 0 ? WHITE : LIGHT;
+      doc.setFillColor(...bg);
+      doc.rect(M, y, CW, 7, 'F');
+      doc.setTextColor(...NAVY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text(s.nombre.substring(0, 28), M + 3, y + 4.8);
+      doc.text(`Prof. ${(s.teachers?.nombre||'') + ' ' + (s.teachers?.apellido||'')}`.substring(0, 22), M + 65, y + 4.8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(String(eGrades.length), M + 130, y + 4.8);
+
+      if (avg !== null) {
+        const color = avg >= 9 ? [30,126,75] : avg >= 7 ? [37,99,168] : avg >= 6 ? [154,98,0] : [192,57,43];
+        doc.setTextColor(...color);
+        doc.setFont('helvetica', 'bold');
+        doc.text(avg.toFixed(1), M + 158, y + 4.8);
+      } else {
+        doc.setTextColor(...MUTED);
+        doc.text('S/C', M + 158, y + 4.8);
+      }
+      doc.setTextColor(...NAVY);
+      y += 7;
+    });
+
+    // Total row
+    doc.setFillColor(...NAVY);
+    doc.rect(M, y, CW, 8, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text('PROMEDIO GENERAL', M + 3, y + 5.5);
+    const globalAvg = grandCount ? (grandTotal / grandCount).toFixed(1) : 'S/C';
+    doc.setTextColor(...ACCENT);
+    doc.text(String(globalAvg), M + 158, y + 5.5);
+    y += 14;
+
+    // ── Detalle de evaluaciones por materia ──
+    for (const { s, eGrades, enr } of subjectSummaries) {
+      if (!eGrades.length) continue;
+      if (y > 240) { doc.addPage(); y = 20; }
+
+      doc.setTextColor(...MID);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(s.nombre, M, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...MUTED);
+      doc.text(`Prof. ${(s.teachers?.nombre||'')+' '+(s.teachers?.apellido||'')}  ·  ${s.nivel||''} ${s.grado} ${s.grupo}`, M, y + 5);
+      y += 10;
+
+      // Mini table header
+      doc.setFillColor(...MID);
+      doc.rect(M, y, CW, 6.5, 'F');
+      doc.setTextColor(...WHITE);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.text('Evaluación', M + 3, y + 4.5);
+      doc.text('Descripción', M + 55, y + 4.5);
+      doc.text('Fecha', M + 120, y + 4.5);
+      doc.text('Calif.', M + 158, y + 4.5);
+      y += 6.5;
+
+      eGrades.forEach((g, idx) => {
+        if (y > 270) { doc.addPage(); y = 20; }
+        const bg = idx % 2 === 0 ? WHITE : LIGHT;
+        doc.setFillColor(...bg);
+        doc.rect(M, y, CW, 6, 'F');
+        doc.setTextColor(...NAVY);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.text(g.tipo.substring(0,22), M + 3, y + 4);
+        doc.text((g.descripcion||'—').substring(0,28), M + 55, y + 4);
+        doc.text(new Date(g.fecha+'T12:00').toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'2-digit'}), M + 120, y + 4);
+        const cal = parseFloat(g.calificacion);
+        const color = cal >= 9 ? [30,126,75] : cal >= 7 ? [37,99,168] : cal >= 6 ? [154,98,0] : [192,57,43];
+        doc.setTextColor(...color);
+        doc.setFont('helvetica', 'bold');
+        doc.text(cal.toFixed(1), M + 160, y + 4);
+        y += 6;
+      });
+      y += 8;
+    }
+
+    // ── Footer ──
+    const pages = doc.getNumberOfPages();
+    for (let i = 1; i <= pages; i++) {
+      doc.setPage(i);
+      doc.setFillColor(...NAVY);
+      doc.rect(0, 285, W, 12, 'F');
+      doc.setTextColor(...WHITE);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.text('EduConnect — Portal Escolar Oficial', M, 292);
+      doc.text(`Página ${i} de ${pages}`, W - M - 15, 292);
+    }
+
+    doc.save(`Reporte_${nombreCompleto.replace(/ /g,'_')}_${matricula}.pdf`);
+    showToast('📄 Reporte PDF descargado');
+  } catch (err) {
+    console.error(err);
+    showToast('Error al generar el PDF. Intenta de nuevo.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '📄 Descargar Reporte PDF'; }
+  }
+}
+
+// ══════════════════════════════════════════
+//  PUSH NOTIFICATIONS
+// ══════════════════════════════════════════
+let pushSubscription = null;
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+async function initPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    pushSubscription = await reg.pushManager.getSubscription();
+    updatePushBtn();
+  } catch (e) { console.warn('Push init error:', e); }
+}
+
+async function togglePushSubscription() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    showToast('Tu navegador no soporta notificaciones push.');
+    return;
+  }
+  if (!currentUser) return;
+  const btn = ge('push-btn');
+
+  if (pushSubscription) {
+    // Unsubscribe
+    await pushSubscription.unsubscribe();
+    await sb.from('push_subscriptions').delete().eq('user_email', currentUser.email);
+    pushSubscription = null;
+    updatePushBtn();
+    showToast('🔕 Notificaciones desactivadas');
+    return;
+  }
+
+  // Subscribe
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { showToast('Permiso de notificaciones denegado.'); return; }
+
+  btn.textContent = '⏳';
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    pushSubscription = sub;
+
+    // Save subscription to Supabase
+    const subJSON = sub.toJSON();
+    await sb.from('push_subscriptions').upsert({
+      user_email:   currentUser.email,
+      endpoint:     subJSON.endpoint,
+      p256dh:       subJSON.keys?.p256dh,
+      auth:         subJSON.keys?.auth,
+      updated_at:   new Date().toISOString()
+    }, { onConflict: 'user_email' });
+
+    updatePushBtn();
+    showToast('🔔 Notificaciones activadas');
+  } catch (e) {
+    console.error(e);
+    showToast('Error al activar notificaciones: ' + e.message);
+    updatePushBtn();
+  }
+}
+
+function updatePushBtn() {
+  const btn = ge('push-btn');
+  if (!btn) return;
+  btn.title = pushSubscription ? 'Desactivar notificaciones' : 'Activar notificaciones';
+  btn.textContent = pushSubscription ? '🔔' : '🔕';
+}
+
+// ══════════════════════════════════════════
+//  MENSAJES DIRECTOS (PADRES)
+// ══════════════════════════════════════════
+let parentMsgSubjectId = null;
+let parentMsgTeacherId = null;
+let parentMsgInterval  = null;
+
+function initParentChat() {
+  const subjects = window._chatSubjects || [];
+  const studentId = window._chatStudentId || '';
+  console.log('Chat subjects:', subjects.length, subjects);
+  loadParentMessages(studentId, subjects);
+}
+
+async function loadParentMessages(studentId, subjects) {
+  const wrap = ge('parent-chat-wrap');
+  if (!wrap) return;
+  if (!subjects || !subjects.length) {
+    wrap.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><p>No hay materias para enviar mensajes.</p></div>`;
+    return;
+  }
+  const pillsHTML = subjects.map((s,i) => `
+    <button class="chat-subj-btn${i===0?' active':''}"
+      onclick="selectParentMsgSubject('${s.id}','${s.teacher_id}',this)">
+      ${s.nombre}
+    </button>`).join('');
+  parentMsgSubjectId = subjects[0].id;
+  parentMsgTeacherId = subjects[0].teacher_id;
+  wrap.innerHTML = `
+    <div class="chat-subject-sel">${pillsHTML}</div>
+    <div class="parent-chat-messages" id="parent-chat-messages"></div>
+    <div class="parent-chat-input">
+      <textarea class="parent-chat-textarea" id="parent-msg-input" placeholder="Escribe un mensaje al maestro…" rows="1"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendParentMsg();}"></textarea>
+      <button class="parent-send-btn" onclick="sendParentMsg()">➤</button>
+    </div>`;
+  await refreshParentChat();
+  clearInterval(parentMsgInterval);
+  parentMsgInterval = setInterval(refreshParentChat, 10000);
+}
+
+async function selectParentMsgSubject(subjectId, teacherId, btn) {
+  parentMsgSubjectId = subjectId;
+  parentMsgTeacherId = teacherId;
+  document.querySelectorAll('.chat-subj-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  await refreshParentChat();
+}
+
+async function refreshParentChat() {
+  if (!parentMsgSubjectId || !parentMsgTeacherId || !currentUser) return;
+  const {data:msgs} = await sb.from('messages')
+    .select('*').eq('subject_id', parentMsgSubjectId)
+    .eq('teacher_id', parentMsgTeacherId)
+    .eq('parent_email', currentUser.email)
+    .order('created_at', {ascending:true});
+  const el = ge('parent-chat-messages');
+  if (!el) return;
+  if (!msgs || !msgs.length) {
+    el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--muted);font-size:.85rem">Aún no hay mensajes. ¡Envía el primero al maestro!</div>`;
+    return;
+  }
+  el.innerHTML = msgs.map(m => {
+    const isSent = m.sender_role === 'parent';
+    const time   = new Date(m.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    const date   = new Date(m.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+    return `
+      <div style="display:flex;flex-direction:column;align-items:${isSent?'flex-end':'flex-start'}">
+        ${!isSent?`<div style="font-size:.72rem;color:var(--muted);margin-bottom:3px">Maestro</div>`:''}
+        <div class="msg-bubble ${isSent?'sent':'received'}">${m.content}</div>
+        <div class="msg-time ${isSent?'right':''}">${date} ${time}</div>
+      </div>`;
+  }).join('');
+  await sb.from('messages').update({leido:true})
+    .eq('subject_id',parentMsgSubjectId).eq('teacher_id',parentMsgTeacherId)
+    .eq('parent_email',currentUser.email).eq('sender_role','teacher');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendParentMsg() {
+  const input   = ge('parent-msg-input');
+  const content = input?.value.trim();
+  if (!content || !parentMsgSubjectId || !parentMsgTeacherId || !currentUser) return;
+  input.value = '';
+  const {error} = await sb.from('messages').insert({
+    subject_id:   parentMsgSubjectId,
+    teacher_id:   parentMsgTeacherId,
+    parent_email: currentUser.email,
+    sender_role:  'parent',
+    content
+  });
+  if (error) { showToast('Error: '+error.message); return; }
+  await refreshParentChat();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const session = DB.getSession();
+  if (session?.email) {
+    const users = DB.getUsers();
+    if (users[session.email]) { currentUser = users[session.email]; initDashboard(); goTo('screen-dashboard'); }
+  }
+  initPushNotifications();
+});
+</script>
+<script>if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+</body>
+</html>
